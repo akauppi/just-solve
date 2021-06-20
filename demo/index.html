@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset='utf-8'>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <link rel="icon" href="/favicon.png">
+
+  <title>Demos</title>
+
+  <script type="module">
+    import '@local/just-solve'
+  </script>
+
+  <style>
+    /*
+    * Note: Using 'grid-area's is overkill, but just so cool (dynamic rearranging in the CSS!)
+    */
+    .grid-cont {
+      display: grid;
+      grid-template-areas:
+        "normal c1 c2 c2b c4";
+      gap: 10px;
+    }
+    /* tbd. how to make the grid remain in the left; not scale to fill all page width?
+    */
+
+    #case-normal {
+      grid-area: normal;
+    }
+    #case-c1 {
+      grid-area: c1;
+    }
+    #case-c2 {
+      grid-area: c2;
+    }
+    #case-c2-b {
+      grid-area: c2b;
+    }
+    #case-c4 {
+      grid-area: c4;
+    }
+
+    .case {
+      border: 1px solid lightgray;
+      width: 210px;
+    }
+    .case img {
+    }
+    .case div {
+      padding-bottom: 0.8em;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Sample</h1>
+
+  <div class="grid-cont">
+    <div class="case" id="case-normal">
+      <img src="./svg-normal.svg" />
+      <div>Normal</div>
+    </div>
+    <div class="case" id="case-c2">
+      <img src="./svg-c2.svg" />
+      <div>Constrained (with <tt>data-*</tt> properties)</div>
+    </div>
+    <div class="case" id="case-c1">
+      <img src="./svg-c1.svg" />
+      <div>Constrained (with separate constraints)</div>
+    </div>
+
+    <!--
+    - is there a difference in interactivity, between 'img' and 'object'?
+    -->
+    <div class="case" id="case-c2-b">
+      <object type="image/svg+xml" data="./svg-c2.svg" ></object>
+      <div>Constrained (with <tt>data-*</tt> constraints; object)</div>
+    </div>
+
+    <div class="case" id="case-c4">
+      <just-constrained svg="./svg-c4.svg" />
+      <div>Constrained (web component)</div>
+    </div>
+  </div>
+
+  <script type="module" >
+    //import { constrain } from '@local/just-solve'
+
+    const c1 = document.querySelector("#case-c1 img");
+    const c2 = document.querySelector("#case-c2 img");
+    const c2b = document.querySelector("#case-c2-b object");
+
+    //constrain(c1);
+
+    //...
+  </script>
+</body>
+</html>

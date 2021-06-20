@@ -1,0 +1,5 @@
+/**/node_modules/
+/**/dist/
+
+# semi-secret
+/.env.local

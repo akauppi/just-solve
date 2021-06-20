@@ -1,0 +1,34 @@
+{
+  "name": "Just solve / demo",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">= 13.2"
+  },
+  "scripts": {
+    "build": "npm --prefix package run build",
+    "dev": "concurrently -k -n just-solve,vite \"npm run -s _watch\" \"vite --port 5000\"",
+    "_watch": "npm --prefix package run watch",
+    "-- ": "",
+    "predev": "PORT=5000 npm run -s _checkPortIsFree",
+    "preinstall": "npm --prefix package install && npm --prefix package run build",
+    "-- -": "",
+    "_checkPortIsFree": "tools/port-is-free.sh $PORT || ( >&2 echo \"ERROR: Port '$PORT' is taken!\n\"; exit 2)"
+  },
+  "dependencies": {
+    "@local/just-solve": "file:./package"
+  },
+  "devDependencies": {
+    "concurrently": "^6.0.2",
+    "vite": "^2.3.7"
+  },
+  "//": {
+    "scripts": {
+      "preinstall": [
+        "Need to build the children before we can 'npm install', since we're using them via 'file:' and they are Svelte-made.",
+        "(should maybe opt for a real dependency-oriented build system, instead)"
+      ]
+    }
+  }
+}

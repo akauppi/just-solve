@@ -1,0 +1,11 @@
+{
+  "exports": {
+    "large-a": "#large-arc.a",
+    "a": "#cone.a",
+    "l": "#cone.l"
+  },
+  "constraints": [
+    "a isTangentWith large-a",
+    "(a.midpoint to l) isPerpendicularTo large-a"
+  ]
+}
