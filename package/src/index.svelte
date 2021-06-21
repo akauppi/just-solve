@@ -3,10 +3,21 @@
 <!--
 - Instance part.
 -
-- This is responsible for the visual side.
+- Responsible for the visual side.
 -->
 <script>
-  import Constrained from "./Constrained.svelte";
+  import { onMount } from 'svelte';
+  import { init } from './init'
+
+  //PROPS
+  export let url;   // URL to external SVG
+  ///PROPS
+
+  let el;   // Element
+
+  onMount( () => {
+    init(el);
+  })
 </script>
 
 <!--
@@ -17,23 +28,19 @@
 -   - modules imported here are also visible in the instance code (normal 'script').
 -->
 <script context="module">
-  //import {writable} from 'svelte/store'
+  //import { writable } from 'svelte/store'
 
   // Our things show to the instances, but not the other way round.
-
-  function fail(msg) { throw new Error(msg); }
-  function assert(cond, msg) {
-    if (!cond) throw new Error(msg);
-  }
 
   export {
   }
 </script>
 
-<!--
-- tbd. try not removing the nodes, but just sliding them out of sight when 'user' changes (does work now, though..)
--->
-<div>I'm in!</div>
+<div>
+  <img bind:this={el}
+     alt="" src="{url}"
+  />
+</div>
 
 <style>
   :host {

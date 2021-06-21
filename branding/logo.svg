@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="150" height="70">
+<svg xmlns="http://www.w3.org/2000/svg" width="150" height="70" style="background-color: white" >
 
   <path id="large-arc" d="M 10 10
     a 30 30 0 1 0 50 0

@@ -25,7 +25,7 @@ function isPassableCssWarning({ code, message }) {
 // Create separate bundles for each component.
 //
 export default {
-  input: 'src/just-constrained.svelte',
+  input: 'src/index.svelte',
   output: {
     sourcemap: true,
     format: 'es',

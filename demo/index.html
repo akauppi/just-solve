@@ -13,19 +13,20 @@
   </script>
 
   <style>
-    /*
-    * Note: Using 'grid-area's is overkill, but just so cool (dynamic rearranging in the CSS!)
-    */
-    .grid-cont {
+    /* disabled: using 'flex' instead
+    *_/
+    .grid {
       display: grid;
+      gap: 10px;
       grid-template-areas:
         "normal c1 c2 c2b c4";
-      gap: 10px;
+    }*/
+    .flex-container {
+      display: flex;
+      flex-wrap: wrap;
     }
-    /* tbd. how to make the grid remain in the left; not scale to fill all page width?
-    */
 
-    #case-normal {
+    /*#case-normal {
       grid-area: normal;
     }
     #case-c1 {
@@ -39,13 +40,12 @@
     }
     #case-c4 {
       grid-area: c4;
-    }
+    }*/
 
     .case {
       border: 1px solid lightgray;
       width: 210px;
-    }
-    .case img {
+      margin: 0.4em;
     }
     .case div {
       padding-bottom: 0.8em;
@@ -57,30 +57,29 @@
 <body>
   <h1>Sample</h1>
 
-  <div class="grid-cont">
+  <div class="flex-container">
     <div class="case" id="case-normal">
       <img src="./svg-normal.svg" />
       <div>Normal</div>
-    </div>
-    <div class="case" id="case-c2">
-      <img src="./svg-c2.svg" />
-      <div>Constrained (with <tt>data-*</tt> properties)</div>
     </div>
     <div class="case" id="case-c1">
       <img src="./svg-c1.svg" />
       <div>Constrained (with separate constraints)</div>
     </div>
+    <div class="case" id="case-c2">
+      <img src="./svg-c2.svg" />
+      <div>Constrained (with <tt>data-*</tt> properties)</div>
+    </div>
 
-    <!--
-    - is there a difference in interactivity, between 'img' and 'object'?
-    -->
+    <!-- remove
     <div class="case" id="case-c2-b">
       <object type="image/svg+xml" data="./svg-c2.svg" ></object>
       <div>Constrained (with <tt>data-*</tt> constraints; object)</div>
     </div>
-
+    -->
     <div class="case" id="case-c4">
-      <just-constrained svg="./svg-c4.svg" />
+      <just-constrained url="./svg-c4.svg">
+      </just-constrained>
       <div>Constrained (web component)</div>
     </div>
   </div>

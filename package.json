@@ -21,7 +21,7 @@
   },
   "devDependencies": {
     "concurrently": "^6.0.2",
-    "vite": "^2.3.7"
+    "vite": "^2.3.8"
   },
   "//": {
     "scripts": {
