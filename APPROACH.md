@@ -19,6 +19,10 @@ Constraints are only to be used within one coordinate system - not over transfor
 
 ## Embrace SVG 2.0 (if it arrives)
 
+>Note: Browsers seem to have support for `data-*` already in SVG 1.1 (see "dataset" [here](https://developer.mozilla.org/en-US/docs/Web/API/SVGElement)).
+>
+>Editors (eg. IntelliJ SVG syntax highlighter doesn't).
+
 It has support for `data-*` properties, that would be a nice way to tap into the SVG, in a standard fashion (those are mentioned to be for "scripting integration" or something..).
 
 Having said that, it's not shipped in browsers.

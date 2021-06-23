@@ -31,14 +31,12 @@ Possible application areas:
 ## Features
 
 - integrates with normal SVG workflows, so that *visual aspects* can be edited with graphical SVG editors
-- constraints defined *declaratively* alongside SVG (waiting for `data-*` parameters of SVG 2.0 for this)
+- constraints can be defined *declaratively* alongside SVG (`data-*` parameters of SVG 2.0 help with this)
 - prepared for SVG 2.0 but useful with (existing) SVG 1.1
-- developer friendliness
-- test suite (tbd.)
 
-### Roadmap
+### Browser requirements
 
-- [ ] make it happen
+- ES6 capable (ever-green) browser
 
 <!-- 
 ## Playground
