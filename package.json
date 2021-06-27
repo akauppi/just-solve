@@ -1,10 +1,13 @@
 {
   "name": "Just solve / demo",
   "license": "MIT",
-  "type": "module",
   "private": true,
+  "type": "module",
   "engines": {
     "node": ">= 13.2"
+  },
+  "bin": {
+    "port-is-free": "./tools/port-is-free.sh"
   },
   "scripts": {
     "build": "npm --prefix package run build",
@@ -14,13 +17,15 @@
     "predev": "PORT=5000 npm run -s _checkPortIsFree",
     "preinstall": "npm --prefix package install && npm --prefix package run build",
     "-- -": "",
-    "_checkPortIsFree": "tools/port-is-free.sh $PORT || ( >&2 echo \"ERROR: Port '$PORT' is taken!\n\"; exit 2)"
+    "_checkPortIsFree": "port-is-free $PORT || ( >&2 echo \"ERROR: Port '$PORT' is taken!\n\"; exit 2)"
   },
   "dependencies": {
     "@local/just-solve": "file:./package"
   },
   "devDependencies": {
+    "@local/self": "file:.",
     "concurrently": "^6.0.2",
+    "svelte": "^3.38.3",
     "vite": "^2.3.8"
   },
   "//": {
