@@ -3,6 +3,8 @@
 */
 import { writable } from 'svelte/store'
 
+import { assert } from '../common.js'
+
 function sCoord(v) {    // (num) => writable of num
   return writable(v);
 }
@@ -10,10 +12,10 @@ function sCoord(v) {    // (num) => writable of num
 // Allow points to be moved around as one (cleans up code), though in solving the coordinates are handled as individual
 // parameters.
 //
-function sPoint(p) {    // ([num,num]) => [writable of num, writable of num]
+function sPoint([x,y]) {    // ([num,num]) => [writable of num, writable of num]
   return [
-    sCoord(p[0]),
-    sCoord(p[1])
+    sCoord(x),
+    sCoord(y)
   ];
 }
 

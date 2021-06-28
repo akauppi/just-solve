@@ -29,14 +29,13 @@
   "scripts": {
     "build": "rollup -c",
     "watch": "rollup -c -w",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --verbose --all",
     "--": "",
     "//clean": "rm -f dist/*"
   },
-  "//dependencies": {
-    "//@svelte/store": ""
-  },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^13.0.0",
+    "jest": "^27.0.5",
     "rollup": "^2.52.2",
     "rollup-plugin-bundle-size": "^1.0.3",
     "rollup-plugin-css-only": "^3.1.0",

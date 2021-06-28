@@ -8,18 +8,20 @@
 *   - d (MDN docs)
 *     -> https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/d
 */
-import { derived } from 'svelte/store'
+import { derived, get as storeGet } from 'svelte/store'
 
-import { fail } from '../common.js'
+import { fail, assert } from '../common.js'
 
 import { sPoint } from '../solvables/index.js'
+import { dotProd, sideDist, moveAlong } from '../math/index.js'
 
 function assure(cond, msg) {    // (boolean, string|() => string)) => ()
   if (!cond) fail(`ERROR in SVG path: ${ typeof msg === 'function' ? msg() : msg }`);
 }
 
 /*
-* Parse an SVG path's 'd' attribute, gathering its internal points, and implicit constraints.
+* Parse an SVG path's 'd' attribute, gathering its internal points, and implicit constraints (lines, arcs, provide none;
+* tbd. will there be some from curves?).
 *
 * Returns:
 *   {
@@ -39,20 +41,193 @@ function embracePath(el) {   // (SVGPathElement) => { names, constraints }   ; t
     throw new Error(`Cannot parse '${ truncate(d,100) }': ${ ex.message }`);
   }
 
-  const names = new Map();          // Map of string -> writable of num | [writable of num, writable of num]
-  const constraints = new Array();  // Array of {...constraint}
-
   // state
   //
-  let isClosed = false;
   let currentPoint = null;    // [writable of num, writable of num] | null
 
   let mCount = 0;       // index of the 'Mm' that set 'currentPoint' (leads to name "M:1", "M:2", ..)
-  let lCount = 0;       // -''- (for 'l'/'L')
+  let lCount = 0;       // -''- (for 'lL')
   let aCount = 0;       // -''-
 
-  const parts = [];   // Array of readable string   ; collects the path components, as they would change dynamically
-                      //                              (may be reduced, but not so that it affects the graphical output)
+  // Note: Defining the different switch cases as functions provides scoping.
+
+  function case_mM( isAbsolut, pairs ) {   // (Boolean, Array of [a,b]) => { name: [string,sPoint], part: readable string }
+    const sp = sPoint( endP(isAbsolut,pairs) );
+    currentPoint = sp;
+
+    mCount++;
+    const name = [`M:${mCount}`, sp];
+
+    // Reproduce by a single, absolute move.
+    //
+    const part = derived( [sp[0], sp[1]], (x,y) => `M ${x} ${y}`);
+
+    return {
+      name,
+      part
+    }
+  }
+
+  // If there are multiple line segments ('l 0 20 50 100'), only the start and end points are steerable by outside
+  // constraints. The intermediate points are scaled between (or around) them, keeping the overall shape.
+  //
+  // Providing interim coordinates and returning back to the starting coord is forbidden.
+
+  function case_lL( isAbsolut, pairs ) {    // (Boolean, Array of [a,b]) => { name: [string,sPoint], part: readable string }
+
+    // Convert the points to their relative coordinates, on the 'currentPoint' to end point axis (left side is negative).
+    //
+    const scaled = scalePoints(isAbsolut, pairs);
+
+    const nextPoint = sPoint( endP(isAbsolut, pairs) );
+
+    // Naming (e.g. "L:3") points to the final coords.
+    //
+    lCount++;
+    const name = [`L:${lCount}`, nextPoint];
+
+    // Reproduce a consistent stream of coords, scaled as the start/end points would move.
+    //
+    const part = derived( [currentPoint[0], currentPoint[1], nextPoint[0], nextPoint[1]], (xa,ya,xb,yb) => {
+      const [vx,vy] = [xb-xa, yb-ya];
+      const vNorm = Math.sqrt(vx*vx + vy*vy);
+
+      const coords = scaled.map( ([sAlong,sSide]) => {
+        const [dx,dy] = moveAlong([vx,vy], sAlong*vNorm, sSide*vNorm);
+        return [
+          xa + dx,
+          ya + dy
+        ];
+      } );
+
+      // Note: scaled coords may get unreasonably long digits. Check some day, if we wish to round them. #tbd.
+
+      const s = "L "+ coords.join(' ');
+      return s;
+    });
+
+    currentPoint = nextPoint;
+
+    return {
+      name,
+      part
+    }
+  }
+
+  // Like with 'l/L', if there are multiple adjacent arc segments, allow only the start and end points to be
+  //    steered by external constraints. The rest scales.
+
+  function case_aA( isAbsolut, sevens ) {    // (Boolean, Array of [a,b,c,d,e,f,g]) => { name: [string,sPoint], part: readable string }
+
+    // Pick the coords (last two points)
+    //
+    const pairs = sevens.map( arr => arr.splice(-2) );
+
+    // Convert the points to their relative coordinates, from 'currentPoint' to end point.
+    const scaled = scalePoints(isAbsolut, pairs);
+
+    //debugger;
+
+    const nextPoint = sPoint( endP(isAbsolut, pairs) );
+
+    // Naming (e.g. "A:6") points to the final coords.
+    //
+    aCount++;
+    const name = [`A:${aCount}`, nextPoint];
+
+    // Reproduce consistent arcs, scaled as the start/end points would move.
+    //
+    const part = derived( [currentPoint[0], currentPoint[1], nextPoint[0], nextPoint[1]], (xa,ya,xb,yb) => {
+      const [vx,vy] = [xb-xa, yb-ya];
+      const vNorm = Math.sqrt(vx*vx + vy*vy);
+
+      const coords = scaled.map( ([sAlong,sSide]) => {
+        const [dx,dy] = moveAlong([vx,vy], sAlong*vNorm, sSide*vNorm);
+        return [
+          xa + dx,
+          ya + dy
+        ];
+      } );
+
+      // Note (tbd.): It's not enough to scale the coords. Also radii and angle needs scaling, to keep the shape.
+
+      //debugger;
+      const tmp = sevens.map( ([rx,ry,angle,largeArgFlag,sweepFlag,_,__], i) => {
+        const [x,y] = coords[i];
+
+        return [rx,ry,angle,largeArgFlag,sweepFlag,x,y];
+      })
+
+      const s = "A "+ tmp.join(' ');
+      return s;
+    });
+
+    currentPoint = nextPoint;
+
+    return {
+      name,
+      part
+    }
+  }
+
+  /*
+  * Map points to the 'currentPoint' -> end point vector. Last returned value is '[1,0]'.
+  */
+  function scalePoints(isAbsolut, pairs) {    // (Boolean, Array of [a,b]) => Array of [num,num]
+    const [cpX,cpY] = [storeGet(currentPoint[0]), storeGet(currentPoint[1])];
+
+    const pe = endP(isAbsolut, pairs);
+    const [vx, vy] = [pe[0] - cpX, pe[1] - cpY];
+
+    if (pairs.length > 1 && vx === 0 && vy === 0) {
+      throw new Error("Multiple 'lL' coordinates, leading back to the starting point is not allowed.");
+    }
+
+    const vNorm = Math.sqrt(vx*vx + vy*vy);
+
+    return pairs.map( ([x,y]) => {
+      const [va,vb] = [x-cpX, y-cpY];
+
+      const dist = dotProd( [va,vb],[vx,vy] );
+      const side = sideDist( [va,vb],[vx,vy] );   // <0: left of line
+
+      return [dist/vNorm, side/vNorm];
+    })
+  }
+
+  /* DISABLED
+  * Vector from 'currentPoint' to the end point of 'lL'
+  *_/
+  function vectorToLast(isAbsolut, pairs) {   // (Boolean, Array of [a,b]) => [dx,dy]
+    const pe = endP(isAbsolut, pairs);
+
+    return [pe[0]-currentPoint[0].value, pe[1]-currentPoint[1].value];
+  }*/
+
+  /*
+  * Provide the end point for 'mM', 'lL'
+  */
+  function endP(isAbsolut, pairs) {    // (Boolean, Array of [a,b]) => [x,y]
+    if (isAbsolut) {  // fast forward to the last point
+      return pairs[pairs.length-1];
+
+    } else {  // need to consider all intermediate points
+      const [cpX,cpY] = [storeGet(currentPoint[0]), storeGet(currentPoint[1])];
+
+      return pairs.reduce( ([a,b], [c,d]) => [a+c, b+d],
+        [cpX, cpY]    // starting value
+      )
+    }
+  }
+
+  // ---
+
+  const parts = [];   // Array of readable string   ; path components that can change dynamically
+
+  const names = new Map();          // Map of string -> writable of num | [writable of num, writable of num]
+  const constraints = new Array();  // Array of {...constraint}
+
+  let isClosed = false;
 
   for( const [char,nums] of arr) {
     assure(!isClosed, _ => `More commands after 'z': ${char} ${nums}`);
@@ -61,82 +236,20 @@ function embracePath(el) {   // (SVGPathElement) => { names, constraints }   ; t
       fail(`Relative path command without a current point: ${char}`);    // note: could be valid SVG (if starting point is implicitly [0,0] - check standards way #later)
     }
 
+    let o;    // { name, part }
+
     switch(char) {
       // Move ties to the following entity; does not create names or constraints itself, but via moving 'currentPoint'.
-      //
       case 'm':
       case 'M':
-        // Nx2 params (normally 2)
         assure(nums.length && nums.length % 2 === 0, _ => `${char} expects an even number of parameters`);
-
-        const pairs = toPairs(nums);
-        let mP;
-
-        if (char === 'M') {
-          mP = pairs[pairs.length-1];   // only last pair matters
-
-        } else {  // 'm'
-          mP = [currentPoint[0].value, currentPoint[1].value];    // tbd. this cool?
-
-          pairs.forEach( ([dx,dy]) => {   // tbd. some functional one-liner to sum them up
-            mP[0] += dx;
-            mP[1] += dy;
-          })
-        }
-        currentPoint = sPoint(mP);
-
-        mCount++;
-        names.set(`M:${mCount}`, currentPoint);
-
-        // Reproduce by a single, absolute move.
-        //
-        const mPart = derived( [currentPoint[0], currentPoint[1]], (x,y) => `M ${x} ${y}`);
-        parts.push(mPart);
+        o = case_mM( char=='M', toPairs(nums) );
         break;
-
-      // tbd. If we have multiple, intermediate points, those could be seen as a path that scales (but keeps the shape),
-      //    between 'currentPoint' and where-ever the last coord of 'lL' leads. Otherwise, solving will go crazy in the
-      //    intermediate points, and addressing is simpler if 'L:3' means the end point of the 3rd 'lL' element.
 
       case 'l':
       case 'L':
         assure(nums.length && nums.length % 2 === 0, _ => `${char} expects an even number of parameters`);
-
-        // Take the last pair. For interim pairs, see comment above (i.e. #later)
-
-        let to;
-
-        if (char === 'l') {
-          to = [currentPoint[0].value, currentPoint[1].value];
-          toPairs(nums).forEach( ([dx,dy]) => {
-            to[0] += dx;
-            to[1] += dy;
-          });
-        } else {
-          to = toPairs(nums).slice(-1);
-        }
-
-        const nextPoint = sPoint(to);
-
-        // Naming (e.g. "L:3") points to the final coords of the "L x y ... xN yN".
-        //
-        lCount++;
-        names.set(`L:${lCount}`, nextPoint);
-
-        // Reproduce a consistent stream of coords, scaled as the start/end points would move. (NOT IMPLEMENTED, #later)
-        //
-        const lPart = derived( [currentPoint[0], currentPoint[1], nextPoint[0], nextPoint[1]], (x,y,xN,yN) => {
-
-          const acc = [`L ${x} ${y}`];
-
-          // tbd. For now, skip interim points - straight to the end.
-
-          acc.push(`L ${xN} ${yN}`);
-          return acc.join(' ');
-        });
-        parts.push(lPart);
-
-        currentPoint = nextPoint;
+        o = case_lL( char=='L', toPairs(nums) );
         break;
 
       /*** #later
@@ -158,37 +271,58 @@ function embracePath(el) {   // (SVGPathElement) => { names, constraints }   ; t
       case 't':
       case 'T':
         break;
+      ***/
+
       case 'a':
       case 'A':
         assure(nums.length && nums.length % 7 === 0, _ => `${char} expects 7,14,.. parameters`);
-
-        toSevens(nums).forEach( ([rx,ry,angle,largeArcFlag,sweepFlag,x,y]) => {
-
-        })
+        o = case_aA( char=='A', toSevens(nums) );
         break;
-      ***/
 
       // Note: handling 'z' needs no constraints gymnastics (always connects last and first point).
       case 'z':
       case 'Z':
         isClosed = true;
+        o = {};
         break;
 
       default:
-        throw new Error(`Unknown path command: ${char}`)
+        fail(`Unknown path command: ${char}`)
+    }
+
+    const { name, part } = o;
+    if (name) {
+      assert( !names.has(name[0]), _ => `Internal error: already has name: ${name[0]}`);
+
+      names.set(name[0], name[1]);
+    }
+
+    if (part) {
+      parts.push(part);
     }
   }
 
+  console.log("!!! parts", parts);
+
+  parts.forEach( (part) => {
+    part.subscribe( x => {
+      console.log("UPDATE: ", x);
+    })
+  })
+
+  /***
   // If any of the parts changes, update the 'd' attribute.
   //
-  const dReadable = derived(parts, (...args) => {
-    const s = args.join(' ') + isClosed ? " Z":"";
+  const dR = derived(parts, ([$a, $b, $c]) => {
+
+    const s = [$a, $b].join(' ') + isClosed ? " Z":"";
     return s;
   });
 
-  dReadable.subscribe(s => {
+  dR.subscribe(s => {
     el.setAttribute("d", s);  // :D
   });
+  ***/
 
   return { names, constraints }
 }
@@ -224,18 +358,6 @@ function preParse(d) {   // (string) => Array of [char, Array of num]
 
   return a2;
 }
-
-// Regex's for path 'd' component parsing
-//
-//const num = "\-?\d*(?:\.\d*)"
-//const ab = `${num},${num}`
-
-/*** not needed
-const ReM = new RegExp( `^[Mm]\s*(${ab})+$` );   // "M 10,10" | "M 10,10 0,0" | "m-5,2"
-const ReL = new RegExp( `^[Ll]\s*(${ab})+$` );   // "L 10,10" | "L 10,10 0,0" | "l-5,2"
-
-const ReH = new RegExp( `^[Hh]\s*(${num})+$` );   // "L 10,10" | "L 10,10 0,0" | "l-5,2"
-***/
 
 const ReCharParams = new RegExp(/\s*([a-zA-Z])([\s,-.\d]*)/g);    // e.g. "   a 20,30 0 1 0 -45,55   ", "a20,30,0,1,0,-45,55"
 

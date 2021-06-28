@@ -13,6 +13,7 @@
     "build": "npm --prefix package run build",
     "dev": "concurrently -k -n just-solve,vite \"npm run -s _watch\" \"vite --port 5000\"",
     "_watch": "npm --prefix package run watch",
+    "test": "npm --prefix package test",
     "-- ": "",
     "predev": "PORT=5000 npm run -s _checkPortIsFree",
     "preinstall": "npm --prefix package install && npm --prefix package run build",
