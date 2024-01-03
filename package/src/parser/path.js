@@ -15,6 +15,9 @@ import { fail, assert } from '../common.js'
 import { sPoint } from '../solvables/index.js'
 import { projDist, sideDist, moveAlong } from '../math/index.js'
 
+import { aConstraint } from './aConstraint.js'
+import { lConstraint } from './lConstraint.js'
+
 function assure(cond, msg) {    // (boolean, string|() => string)) => ()
   if (!cond) fail(`ERROR in SVG path: ${ typeof msg === 'function' ? msg() : msg }`);
 }
@@ -56,14 +59,16 @@ function embracePath(el) {   // (SVGPathElement) => { names, constraints }   ; t
     currentPoint = sp;
 
     mCount++;
-    const name = [`M:${mCount}`, sp];
+
+    // No need to name - can be addressed by the related element's first point (e.g. "L:1.start")
+    //const name = [`M:${mCount}`, sp];
 
     // Reproduce by a single, absolute move.
     //
     const part = derived( [sp[0], sp[1]], (x,y) => `M ${x} ${y}`);
 
     return {
-      name,
+      //name,
       part
     }
   }
@@ -84,7 +89,7 @@ function embracePath(el) {   // (SVGPathElement) => { names, constraints }   ; t
     // Naming (e.g. "L:3") points to the final coords.
     //
     lCount++;
-    const name = [`L:${lCount}`, nextPoint];
+    const name = [`L:${lCount}`, lConstraint( currentPoint, nextPoint )];
 
     // Reproduce a consistent stream of coords, scaled as the start/end points would move.
     //
@@ -126,14 +131,17 @@ function embracePath(el) {   // (SVGPathElement) => { names, constraints }   ; t
     // Convert the points to their relative coordinates, from 'currentPoint' to end point.
     const scaled = scalePoints(isAbsolut, pairs);
 
-    //debugger;
-
     const nextPoint = sPoint( endP(isAbsolut, pairs) );
+
+    const ac = (sevens.length === 1) ? {
+      start: currentPoint,
+      end: nextPoint
+    } : aConstraint(currentPoint, nextPoint);   // procedural constraints for '.r' and '.centre'
 
     // Naming (e.g. "A:6") points to the final coords.
     //
     aCount++;
-    const name = [`A:${aCount}`, nextPoint];
+    const name = [`A:${aCount}`, { start: currentPoint, end: nextPoint }];
 
     // Reproduce consistent arcs, scaled as the start/end points would move.
     //
@@ -151,7 +159,6 @@ function embracePath(el) {   // (SVGPathElement) => { names, constraints }   ; t
 
       // Note (tbd.): It's not enough to scale the coords. Also radii and angle needs scaling, to keep the shape.
 
-      //debugger;
       const tmp = sevens.map( ([rx,ry,angle,largeArgFlag,sweepFlag,_,__], i) => {
         const [x,y] = coords[i];
 
