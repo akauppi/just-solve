@@ -13,7 +13,7 @@ import { derived, get as storeGet } from 'svelte/store'
 import { fail, assert } from '../common.js'
 
 import { sPoint } from '../solvables/index.js'
-import { dotProd, sideDist, moveAlong } from '../math/index.js'
+import { projDist, sideDist, moveAlong } from '../math/index.js'
 
 function assure(cond, msg) {    // (boolean, string|() => string)) => ()
   if (!cond) fail(`ERROR in SVG path: ${ typeof msg === 'function' ? msg() : msg }`);
@@ -188,7 +188,7 @@ function embracePath(el) {   // (SVGPathElement) => { names, constraints }   ; t
     return pairs.map( ([x,y]) => {
       const [va,vb] = [x-cpX, y-cpY];
 
-      const dist = dotProd( [va,vb],[vx,vy] );
+      const dist = projDist( [va,vb],[vx,vy] );
       const side = sideDist( [va,vb],[vx,vy] );   // <0: left of line
 
       return [dist/vNorm, side/vNorm];
